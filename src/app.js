@@ -21,7 +21,17 @@ const myHandler = async (event, responseStream, context) => {
       throw new Error("Missing GROQ_API_KEY in environment variables.");
     }
 
-    const wc = new WooCommerceRestApi({ url: storeUrl, consumerKey, consumerSecret, version: "wc/v3" });
+    const wc = new WooCommerceRestApi({ 
+      url: storeUrl, 
+      consumerKey, 
+      consumerSecret, 
+      version: "wc/v3",
+      axiosConfig: {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      }
+    });
 
     // 1. Fetch Orders (Past 24 Hours)
     const yesterday = new Date();
