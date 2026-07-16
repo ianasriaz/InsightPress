@@ -52,6 +52,9 @@ const myHandler = async (event, responseStream, context) => {
       .map(p => `${p.name} (${p.stock_quantity} left in stock)`)
       .slice(0, 10);
 
+    // Get yesterday's date for the report header
+    const yesterdayDateString = yesterday.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
     const prompt = `
 You are InsightPress, an AI agent for the store "Khawaja Textile Fabrics".
 Generate a premium, modern HTML email report using EXACTLY the following HTML structure. Do NOT wrap your response in markdown blockquotes (no \`\`\`html). Just output the raw HTML.
@@ -61,6 +64,9 @@ Generate a premium, modern HTML email report using EXACTLY the following HTML st
     <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 32px; text-align: center;">
       <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">Khawaja Textile Fabrics</h1>
       <p style="color: #94a3b8; margin: 8px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Daily Performance Report</p>
+      <div style="margin-top: 12px; display: inline-block; background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 9999px;">
+        <span style="color: #cbd5e1; font-size: 12px;">Data for: <strong>${yesterdayDateString}</strong></span>
+      </div>
     </div>
     
     <div style="padding: 32px;">
