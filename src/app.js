@@ -40,15 +40,9 @@ const myHandler = async (event, responseStream, context) => {
     
     let totalRevenue = 0;
     let processingCount = 0;
-    const productCounts = {};
     orders.forEach(order => {
       totalRevenue += parseFloat(order.total || 0);
       if (order.status === "processing") processingCount++;
-      order.line_items.forEach(item => {
-        if (!productCounts[item.name]) productCounts[item.name] = { qty: 0, revenue: 0 };
-        productCounts[item.name].qty += item.quantity;
-        productCounts[item.name].revenue += parseFloat(item.total);
-      });
     });
 
     // 2. Fetch Low Stock Products
@@ -59,22 +53,44 @@ const myHandler = async (event, responseStream, context) => {
       .slice(0, 10);
 
     const prompt = `
-You are an expert retail analyst. I am providing you with the sales data for my WooCommerce store over the past 24 hours, and a list of low-stock items.
-Please write a highly professional, beautifully formatted HTML "Morning Briefing" email to the store manager.
+You are InsightPress, an AI agent for the store "Khawaja Textile Fabrics".
+Generate a premium, modern HTML email report using EXACTLY the following HTML structure. Do NOT wrap your response in markdown blockquotes (no \`\`\`html). Just output the raw HTML.
 
-CRITICAL REQUIREMENTS:
-1. You MUST format the output entirely as HTML (using <h2>, <ul>, <strong>, etc.). Do NOT wrap it in markdown blockquotes like \`\`\`html.
-2. Ensure the HTML has inline CSS styling so it looks premium and modern in an email client (use clean sans-serif fonts, good spacing, maybe a soft blue header).
-3. All currency values MUST be in Pakistani Rupees (format as 'PKR' or 'Rs.').
-4. The data shows there are exactly ${processingCount} orders currently in "Processing" status. You must explicitly warn the manager that these orders need to be fulfilled and shipped today.
-5. Highlight the total revenue, number of orders, and mention the top-selling products.
-6. List the low-stock items (including the exact quantity left) and URGE the manager to restock them immediately to avoid lost sales.
+<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f8fafc; padding: 40px 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 32px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">Khawaja Textile Fabrics</h1>
+      <p style="color: #94a3b8; margin: 8px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Daily Performance Report</p>
+    </div>
+    
+    <div style="padding: 32px;">
+      <!-- Insert a short, encouraging 1-sentence greeting here (wrap in a <p> tag with color: #475569) -->
+      
+      <div style="margin: 24px 0; background: #f1f5f9; padding: 24px; border-radius: 12px; text-align: center;">
+        <p style="margin: 0; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase;">Total Revenue</p>
+        <h2 style="margin: 8px 0 0 0; color: #0f172a; font-size: 32px;">Rs. ${totalRevenue.toFixed(2)}</h2>
+        <p style="margin: 8px 0 0 0; color: #64748b; font-size: 14px;">from ${orders.length} total orders</p>
+      </div>
 
-Data:
-Total Orders: ${orders.length}
-Total Revenue: Rs. ${totalRevenue.toFixed(2)}
-Orders Needing Processing/Fulfillment: ${processingCount}
-Low Stock Items to Restock: ${JSON.stringify(lowStockNames)}
+      <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
+        <h3 style="margin: 0 0 8px 0; color: #b45309; font-size: 16px;">Action Required: Pending Fulfillment</h3>
+        <p style="margin: 0; color: #92400e; font-size: 14px;">There are currently <strong>${processingCount} orders</strong> waiting to be processed and shipped today.</p>
+      </div>
+
+      <h3 style="color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 32px;">Critical Low Stock Alerts</h3>
+      <!-- Generate a beautifully styled list of the low stock items here based on the data provided below. Use clean padding and maybe a red color for the stock count -->
+      
+    </div>
+    <div style="background: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+      <p style="margin: 0; color: #64748b; font-size: 12px;">Generated automatically by <strong>InsightPress</strong> Agent</p>
+    </div>
+  </div>
+</div>
+
+Data Context:
+- Low Stock Items: ${JSON.stringify(lowStockNames)}
+
+Follow the HTML structure exactly. Make sure the low stock list looks very premium. Do NOT include "top selling products".
 `;
 
     // 3. Generate streaming insights with Groq (Llama 3)
@@ -122,9 +138,9 @@ Low Stock Items to Restock: ${JSON.stringify(lowStockNames)}
         auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
       });
       await transporter.sendMail({
-        from: `"Store Insights Agent" <${process.env.FROM_EMAIL}>`,
+        from: `"InsightPress Agent" <${process.env.FROM_EMAIL}>`,
         to: process.env.TO_EMAIL,
-        subject: `Daily Store Insights: ${new Date().toLocaleDateString()}`,
+        subject: `InsightPress Report: Khawaja Textile Fabrics - ${new Date().toLocaleDateString()}`,
         html: fullGeneratedText,
       });
     }
