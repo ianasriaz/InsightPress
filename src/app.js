@@ -33,10 +33,17 @@ const myHandler = async (event, responseStream, context) => {
       }
     });
 
-    // 1. Fetch Orders (Past 24 Hours)
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const { data: orders } = await wc.get("orders", { after: yesterday.toISOString(), status: "processing,completed", per_page: 100 });
+    // 1. Fetch Orders (Strictly Yesterday's Calendar Day)
+    const now = new Date();
+    const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
+    const endOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+    
+    const { data: orders } = await wc.get("orders", { 
+      after: startOfYesterday.toISOString(), 
+      before: endOfYesterday.toISOString(),
+      status: "processing,completed", 
+      per_page: 100 
+    });
     
     let totalRevenue = 0;
     let processingCount = 0;
@@ -53,12 +60,13 @@ const myHandler = async (event, responseStream, context) => {
       .slice(0, 10);
 
     // Get yesterday's date for the report header
-    const yesterdayDateString = yesterday.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const yesterdayDateString = startOfYesterday.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     const prompt = `
 You are InsightPress, an AI retail analyst for the store "Khawaja Textile Fabrics".
-Analyze the following daily sales data and write a short, professional, 2-3 sentence "Daily Insight" for the store manager.
-Focus on the revenue, pending orders, and the urgency of the low stock. Do NOT use any markdown or HTML. Just plain text.
+Analyze the following daily sales data from yesterday and write a short, highly professional, 2-3 sentence "Daily Insight" addressed to the CEO.
+The CEO reads this at 8:00 AM every morning.
+Focus on the revenue, pending orders, and the urgency of the low stock. Do NOT use any markdown or HTML. Just plain text. Start directly with the insight (do not include a greeting, it is already handled).
 
 Data:
 Total Orders: ${orders.length}
@@ -137,6 +145,7 @@ Low Stock Items: ${JSON.stringify(lowStockNames)}
           <!-- AI Insight -->
           <tr>
             <td style="padding: 32px 24px 24px 24px;">
+              <h3 style="margin: 0 0 12px 0; color: #111827; font-size: 18px;">Good morning, CEO.</h3>
               <p style="margin: 0; color: #4b5563; font-size: 15px; line-height: 1.6;">${generatedInsight}</p>
             </td>
           </tr>
