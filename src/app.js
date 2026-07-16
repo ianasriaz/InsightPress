@@ -56,86 +56,146 @@ const myHandler = async (event, responseStream, context) => {
     const yesterdayDateString = yesterday.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     const prompt = `
-You are InsightPress, an AI agent for the store "Khawaja Textile Fabrics".
-Generate a premium, modern HTML email report using EXACTLY the following HTML structure. Do NOT wrap your response in markdown blockquotes (no \`\`\`html). Just output the raw HTML.
+You are InsightPress, an AI retail analyst for the store "Khawaja Textile Fabrics".
+Analyze the following daily sales data and write a short, professional, 2-3 sentence "Daily Insight" for the store manager.
+Focus on the revenue, pending orders, and the urgency of the low stock. Do NOT use any markdown or HTML. Just plain text.
 
-<div style="font-family: 'Inter', -apple-system, sans-serif; background-color: #f8fafc; padding: 40px 20px;">
-  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
-    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 32px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">Khawaja Textile Fabrics</h1>
-      <p style="color: #94a3b8; margin: 8px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Daily Performance Report</p>
-      <div style="margin-top: 12px; display: inline-block; background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 9999px;">
-        <span style="color: #cbd5e1; font-size: 12px;">Data for: <strong>${yesterdayDateString}</strong></span>
-      </div>
-    </div>
-    
-    <div style="padding: 32px;">
-      <!-- Insert a short, encouraging 1-sentence greeting here (wrap in a <p> tag with color: #475569) -->
-      
-      <div style="margin: 24px 0; background: #f1f5f9; padding: 24px; border-radius: 12px; text-align: center;">
-        <p style="margin: 0; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase;">Total Revenue</p>
-        <h2 style="margin: 8px 0 0 0; color: #0f172a; font-size: 32px;">Rs. ${totalRevenue.toFixed(2)}</h2>
-        <p style="margin: 8px 0 0 0; color: #64748b; font-size: 14px;">from ${orders.length} total orders</p>
-      </div>
-
-      <div style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
-        <h3 style="margin: 0 0 8px 0; color: #b45309; font-size: 16px;">Action Required: Pending Fulfillment</h3>
-        <p style="margin: 0; color: #92400e; font-size: 14px;">There are currently <strong>${processingCount} orders</strong> waiting to be processed and shipped today.</p>
-      </div>
-
-      <h3 style="color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 32px;">Critical Low Stock Alerts</h3>
-      <!-- Generate a beautifully styled list of the low stock items here based on the data provided below. Use clean padding and maybe a red color for the stock count -->
-      
-    </div>
-    <div style="background: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #e2e8f0;">
-      <p style="margin: 0; color: #64748b; font-size: 12px;">Generated automatically by <strong>InsightPress</strong> Agent</p>
-    </div>
-  </div>
-</div>
-
-Data Context:
-- Low Stock Items: ${JSON.stringify(lowStockNames)}
-
-Follow the HTML structure exactly. Make sure the low stock list looks very premium. Do NOT include "top selling products".
+Data:
+Total Orders: ${orders.length}
+Total Revenue: Rs. ${totalRevenue.toFixed(2)}
+Orders Needing Processing: ${processingCount}
+Low Stock Items: ${JSON.stringify(lowStockNames)}
 `;
 
-    // 3. Generate streaming insights with Groq (Llama 3)
+    // 3. Generate insight text with Groq (Llama 3)
     console.log("Invoking Groq API...");
-    
     const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${groqApiKey}`,
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
         model: "llama-3.1-8b-instant",
-        messages: [
-          { role: "system", content: "You are a helpful retail AI assistant." },
-          { role: "user", content: prompt }
-        ],
-        stream: false
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.5,
+        max_tokens: 150
       })
     });
 
     if (!groqResponse.ok) {
-        throw new Error(`Groq API Error: ${groqResponse.status} ${await groqResponse.text()}`);
+      throw new Error(`Groq API Error: ${groqResponse.status} ${await groqResponse.text()}`);
     }
 
     const responseBody = await groqResponse.json();
-    const fullGeneratedText = responseBody.choices[0].message.content;
-    
+    const generatedInsight = responseBody.choices[0].message.content.trim();
     console.log("Successfully generated insight with Groq.");
 
-    // Stream directly to the browser if using streaming URL
-    if (isStreaming && responseStream) {
-      responseStream.setContentType("text/plain");
-      responseStream.write(fullGeneratedText);
-      responseStream.end();
+    // Build Low Stock HTML
+    let lowStockHtml = "";
+    if (lowStockNames.length > 0) {
+      lowStockNames.forEach(item => {
+        lowStockHtml += `
+        <tr>
+          <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb;">
+            <span style="color: #374151; font-size: 14px; font-weight: 500;">${item.split(' (')[0]}</span>
+          </td>
+          <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb; text-align: right;">
+            <span style="background-color: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 9999px; font-size: 12px; font-weight: 600;">${item.match(/\((.*?)\)/)[1]}</span>
+          </td>
+        </tr>`;
+      });
+    } else {
+      lowStockHtml = `<tr><td style="padding: 16px; text-align: center; color: #6b7280; font-size: 14px;">All stock levels are healthy!</td></tr>`;
     }
 
+    // Build Bulletproof HTML Email
+    const fullHtmlEmail = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f3f4f6; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card -->
+        <table width="100%" max-width="600" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #111827; padding: 32px 24px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Khawaja Textile Fabrics</h1>
+              <p style="margin: 8px 0 0 0; color: #9ca3af; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Daily Performance Report</p>
+              <div style="margin-top: 16px;">
+                <span style="background-color: rgba(255,255,255,0.1); color: #d1d5db; padding: 6px 12px; border-radius: 20px; font-size: 12px;">${yesterdayDateString}</span>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- AI Insight -->
+          <tr>
+            <td style="padding: 32px 24px 24px 24px;">
+              <p style="margin: 0; color: #4b5563; font-size: 15px; line-height: 1.6;">${generatedInsight}</p>
+            </td>
+          </tr>
+
+          <!-- Metrics -->
+          <tr>
+            <td style="padding: 0 24px;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <!-- Revenue -->
+                  <td width="48%" style="background-color: #f9fafb; border: 1px solid #f3f4f6; border-radius: 8px; padding: 20px; text-align: center;">
+                    <p style="margin: 0; color: #6b7280; font-size: 11px; font-weight: 600; text-transform: uppercase;">Total Revenue</p>
+                    <h2 style="margin: 8px 0 0 0; color: #111827; font-size: 24px;">Rs. ${totalRevenue.toFixed(2)}</h2>
+                    <p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 12px;">${orders.length} Orders</p>
+                  </td>
+                  <td width="4%"></td>
+                  <!-- Processing -->
+                  <td width="48%" style="background-color: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px; padding: 20px; text-align: center;">
+                    <p style="margin: 0; color: #c2410c; font-size: 11px; font-weight: 600; text-transform: uppercase;">Needs Fulfillment</p>
+                    <h2 style="margin: 8px 0 0 0; color: #9a3412; font-size: 24px;">${processingCount}</h2>
+                    <p style="margin: 4px 0 0 0; color: #fdba74; font-size: 12px;">Pending Orders</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Low Stock Header -->
+          <tr>
+            <td style="padding: 32px 24px 12px 24px;">
+              <h3 style="margin: 0; color: #111827; font-size: 16px; border-bottom: 2px solid #f3f4f6; padding-bottom: 12px;">Low Stock Alerts</h3>
+            </td>
+          </tr>
+
+          <!-- Low Stock Table -->
+          <tr>
+            <td style="padding: 0 24px 32px 24px;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                ${lowStockHtml}
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f9fafb; padding: 20px 24px; text-align: center; border-top: 1px solid #f3f4f6;">
+              <p style="margin: 0; color: #9ca3af; font-size: 12px;">Powered by <strong>InsightPress AI</strong></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
     // 4. Send email via Purelymail SMTP
-    if (fullGeneratedText.length > 10) {
+    if (fullHtmlEmail.length > 10) {
       console.log("Sending proactive email via Purelymail SMTP...");
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || "smtp.purelymail.com",
@@ -147,13 +207,13 @@ Follow the HTML structure exactly. Make sure the low stock list looks very premi
         from: `"InsightPress Agent" <${process.env.FROM_EMAIL}>`,
         to: process.env.TO_EMAIL,
         subject: `InsightPress Report: Khawaja Textile Fabrics - ${new Date().toLocaleDateString()}`,
-        html: fullGeneratedText,
+        html: fullHtmlEmail,
       });
     }
 
     // For local tests or non-streaming invocations
     if (!isStreaming) {
-      return { statusCode: 200, body: fullGeneratedText };
+      return { statusCode: 200, body: fullHtmlEmail };
     }
 
   } catch (error) {
