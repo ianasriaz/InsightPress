@@ -1,0 +1,54 @@
+name: Deploy Agent to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: |
+          cd src
+          npm install
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Build SAM Application
+        run: sam build
+
+      - name: Deploy to AWS Lambda
+        run: >
+          sam deploy --stack-name StoreInsightsAgent
+          --resolve-s3
+          --capabilities CAPABILITY_IAM
+          --no-confirm-changeset
+          --no-fail-on-empty-changeset
+          --parameter-overrides
+          StoreUrl="${{ secrets.STORE_URL }}"
+          WcConsumerKey="${{ secrets.WC_CONSUMER_KEY }}"
+          WcConsumerSecret="${{ secrets.WC_CONSUMER_SECRET }}"
+          GroqApiKey="${{ secrets.GROQ_API_KEY }}"
+          SmtpUser="${{ secrets.SMTP_USER }}"
+          SmtpPass="${{ secrets.SMTP_PASS }}"
+          FromEmail="${{ secrets.FROM_EMAIL }}"
+          ToEmail="${{ secrets.TO_EMAIL }}"

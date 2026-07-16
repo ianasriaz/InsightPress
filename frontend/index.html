@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Always-On Agent Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --accent1: #8a2be2;
+            --accent2: #4169e1;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+        /* Background glows */
+        .glow {
+            position: fixed;
+            width: 40vw;
+            height: 40vw;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.4;
+            z-index: -1;
+            animation: float 10s infinite alternate ease-in-out;
+        }
+        .glow-1 { top: -10%; left: -10%; background: var(--accent1); }
+        .glow-2 { bottom: -10%; right: -10%; background: var(--accent2); animation-delay: -5s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, 30px) scale(1.1); }
+        }
+
+        .header {
+            margin-top: 60px;
+            text-align: center;
+        }
+        .header h1 {
+            font-weight: 800;
+            font-size: 3rem;
+            margin: 0;
+            background: linear-gradient(90deg, #fff, #aaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header p {
+            color: #888;
+            font-weight: 300;
+            margin-top: 10px;
+            font-size: 1.1rem;
+        }
+
+        .dashboard {
+            width: 90%;
+            max-width: 800px;
+            margin-top: 40px;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            width: 100%;
+        }
+
+        input {
+            flex-grow: 1;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            padding: 15px 20px;
+            border-radius: 12px;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+        }
+        input:focus {
+            border-color: var(--accent1);
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.3);
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--accent1), var(--accent2));
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 10px 20px rgba(138, 43, 226, 0.2);
+            white-space: nowrap;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px rgba(138, 43, 226, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .console {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            min-height: 250px;
+            padding: 25px;
+            color: #ddd;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.05rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            position: relative;
+        }
+
+        .blinking-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 20px;
+            background: white;
+            margin-left: 5px;
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .status {
+            font-size: 0.9rem;
+            color: #aaa;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4caf50;
+            box-shadow: 0 0 10px #4caf50;
+        }
+        .status-dot.running {
+            background: #ffc107;
+            box-shadow: 0 0 10px #ffc107;
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.3); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <div class="header">
+        <h1>Store Insights Agent</h1>
+        <p>AWS Weekend Challenge • Powered by Claude 4.5</p>
+    </div>
+
+    <div class="dashboard">
+        <div class="controls">
+            <input type="text" id="apiUrl" placeholder="Paste your AWS Lambda Function URL here..." value="">
+            <button id="runBtn" onclick="runAgent()">Run Agent</button>
+        </div>
+
+        <div class="status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Agent is sleeping...</span>
+        </div>
+
+        <div class="console">
+            <span id="output">Waiting for manual trigger or scheduled run...</span><span class="blinking-cursor" id="cursor" style="display:none;"></span>
+        </div>
+    </div>
+
+    <script>
+        async function runAgent() {
+            const url = document.getElementById('apiUrl').value.trim();
+            if (!url) {
+                alert("Please enter your AWS Lambda Function URL first!");
+                return;
+            }
+
+            const btn = document.getElementById('runBtn');
+            const output = document.getElementById('output');
+            const cursor = document.getElementById('cursor');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            btn.disabled = true;
+            btn.innerText = "Running...";
+            output.innerText = "";
+            cursor.style.display = "inline-block";
+            
+            statusDot.classList.add('running');
+            statusText.innerText = "Fetching WooCommerce data and waking up Claude 4.5...";
+
+            try {
+                // We use standard fetch. The AWS Lambda Function URL streams the response natively.
+                const response = await fetch(url, { method: 'POST' });
+                
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                }
+
+                statusText.innerText = "Receiving real-time streaming response from AWS Bedrock...";
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let done = false;
+
+                while (!done) {
+                    const { value, done: readerDone } = await reader.read();
+                    done = readerDone;
+                    if (value) {
+                        output.innerText += decoder.decode(value, { stream: !done });
+                    }
+                }
+
+                statusDot.classList.remove('running');
+                statusText.innerText = "Done! Morning Briefing has been emailed to you.";
+                
+            } catch (err) {
+                console.error(err);
+                output.innerText = "Error: " + err.message + "\n\n(Make sure your AWS Quota is approved and CORS is enabled on the Function URL!)";
+                statusDot.classList.remove('running');
+                statusText.innerText = "Agent encountered an error.";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Run Agent";
+                cursor.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>

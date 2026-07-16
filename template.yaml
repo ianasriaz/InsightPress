@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AWS Challenge - Daily Store Insights Agent
+
+Globals:
+  Function:
+    Timeout: 30
+
+Resources:
+  StoreInsightsAgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.handler
+      Runtime: nodejs20.x
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          STORE_URL: !Ref StoreUrl
+          WC_CONSUMER_KEY: !Ref WcConsumerKey
+          WC_CONSUMER_SECRET: !Ref WcConsumerSecret
+          SMTP_HOST: !Ref SmtpHost
+          SMTP_PORT: !Ref SmtpPort
+          SMTP_USER: !Ref SmtpUser
+          SMTP_PASS: !Ref SmtpPass
+          FROM_EMAIL: !Ref FromEmail
+          TO_EMAIL: !Ref ToEmail
+          GROQ_API_KEY: !Ref GroqApiKey
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: RESPONSE_STREAM
+        Cors:
+          AllowOrigins:
+            - "*"
+          AllowMethods:
+            - "*"
+          AllowHeaders:
+            - "*"
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 0 * * ? *) # Runs at midnight UTC daily
+            Name: DailyStoreInsightsSchedule
+            Description: Triggers the agent daily
+
+Parameters:
+  StoreUrl:
+    Type: String
+    Default: "https://example.com"
+  WcConsumerKey:
+    Type: String
+    Default: ""
+  WcConsumerSecret:
+    Type: String
+    Default: ""
+  SmtpHost:
+    Type: String
+    Default: "smtp.purelymail.com"
+  SmtpPort:
+    Type: String
+    Default: "587"
+  SmtpUser:
+    Type: String
+    Default: ""
+  SmtpPass:
+    Type: String
+    Default: ""
+  FromEmail:
+    Type: String
+    Default: ""
+  ToEmail:
+    Type: String
+    Default: ""
+  GroqApiKey:
+    Type: String
+    Default: ""
+
+Outputs:
+  AgentEndpoint:
+    Description: "API Endpoint for the Agent UI"
+    Value: !GetAtt StoreInsightsAgentFunctionUrl.FunctionUrl
