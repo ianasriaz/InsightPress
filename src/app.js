@@ -116,7 +116,7 @@ Format the output as a clean, engaging text or markdown email (no subject line).
   } catch (error) {
     console.error("Error:", error);
     if (isStreaming && responseStream) {
-      responseStream.write("\\n\\nError generating insights.");
+      responseStream.write("\\n\\nError: " + error.message + " (Check AWS CloudWatch for full logs)");
       responseStream.end();
     } else {
       throw error;
