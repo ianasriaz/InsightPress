@@ -39,9 +39,11 @@ const myHandler = async (event, responseStream, context) => {
     const { data: orders } = await wc.get("orders", { after: yesterday.toISOString(), status: "processing,completed", per_page: 100 });
     
     let totalRevenue = 0;
+    let processingCount = 0;
     const productCounts = {};
     orders.forEach(order => {
       totalRevenue += parseFloat(order.total || 0);
+      if (order.status === "processing") processingCount++;
       order.line_items.forEach(item => {
         if (!productCounts[item.name]) productCounts[item.name] = { qty: 0, revenue: 0 };
         productCounts[item.name].qty += item.quantity;
@@ -51,19 +53,28 @@ const myHandler = async (event, responseStream, context) => {
 
     // 2. Fetch Low Stock Products
     const { data: products } = await wc.get("products", { per_page: 50, stock_status: "instock" });
-    const lowStockNames = products.filter(p => p.manage_stock && p.stock_quantity !== null && p.stock_quantity <= 5).map(p => p.name).slice(0, 10);
+    const lowStockNames = products
+      .filter(p => p.manage_stock && p.stock_quantity !== null && p.stock_quantity <= 5)
+      .map(p => `${p.name} (${p.stock_quantity} left in stock)`)
+      .slice(0, 10);
 
     const prompt = `
 You are an expert retail analyst. I am providing you with the sales data for my WooCommerce store over the past 24 hours, and a list of low-stock items.
-Please write a short, friendly, and actionable "Morning Briefing" email to the store manager.
-Highlight the total revenue, number of orders, mention the top selling products, and URGE them to restock the low stock items.
+Please write a highly professional, beautifully formatted HTML "Morning Briefing" email to the store manager.
+
+CRITICAL REQUIREMENTS:
+1. You MUST format the output entirely as HTML (using <h2>, <ul>, <strong>, etc.). Do NOT wrap it in markdown blockquotes like \`\`\`html.
+2. Ensure the HTML has inline CSS styling so it looks premium and modern in an email client (use clean sans-serif fonts, good spacing, maybe a soft blue header).
+3. All currency values MUST be in Pakistani Rupees (format as 'PKR' or 'Rs.').
+4. The data shows there are exactly ${processingCount} orders currently in "Processing" status. You must explicitly warn the manager that these orders need to be fulfilled and shipped today.
+5. Highlight the total revenue, number of orders, and mention the top-selling products.
+6. List the low-stock items (including the exact quantity left) and URGE the manager to restock them immediately to avoid lost sales.
 
 Data:
 Total Orders: ${orders.length}
-Total Revenue: $${totalRevenue.toFixed(2)}
+Total Revenue: Rs. ${totalRevenue.toFixed(2)}
+Orders Needing Processing/Fulfillment: ${processingCount}
 Low Stock Items to Restock: ${JSON.stringify(lowStockNames)}
-
-Format the output as a clean, engaging text or markdown email (no subject line).
 `;
 
     // 3. Generate streaming insights with Groq (Llama 3)
@@ -114,7 +125,7 @@ Format the output as a clean, engaging text or markdown email (no subject line).
         from: `"Store Insights Agent" <${process.env.FROM_EMAIL}>`,
         to: process.env.TO_EMAIL,
         subject: `Daily Store Insights: ${new Date().toLocaleDateString()}`,
-        text: fullGeneratedText,
+        html: fullGeneratedText,
       });
     }
 
