@@ -39,10 +39,10 @@ Resources:
           AllowHeaders:
             - "*"
       Events:
-        ScheduleEvent:
-          Type: Schedule
+        DailyEvent:
+          Type: ScheduleV2
           Properties:
-            Schedule: cron(0 0 * * ? *) # Runs at midnight UTC daily
+            ScheduleExpression: "cron(0 3 * * ? *)" # Runs at 3:00 AM UTC (8:00 AM Pakistan Standard Time) daily
             Name: DailyStoreInsightsSchedule
             Description: Triggers the agent daily
 
